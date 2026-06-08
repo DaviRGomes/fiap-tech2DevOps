@@ -1,20 +1,22 @@
 services:
+
+# Auth - Service
   auth-service:
     build: ./auth-service
     container_name: auth-service
     ports:
       - "8001:8001"
     environment:
-      DATABASE_URL: postgres://postgres:postgres@db:5432/auth_db?sslmode=disable
+      DATABASE_URL: postgres://postgres:postgres@db_auth:5432/auth_db?sslmode=disable
       PORT: 8001
       MASTER_KEY: admin-secreto-123
     networks:
       - app-network
     depends_on:
-      db:
+      db_auth:
         condition: service_healthy
 
-  db:
+  db_auth:
     image: postgres:16
     container_name: postgres-auth
     ports:
@@ -27,6 +29,41 @@ services:
       - ./auth-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+# Flag - Service
+  flag_service:
+    build: ./flag-service
+    container_name: flag_service
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db_flag:5432/flag_db?sslmode=disable
+      PORT: 8002
+      AUTH_SERVICE_URL: "http://localhost:8001"
+    networks:
+      - app-network
+    depends_on:
+      db_flag:
+        condition: service_healthy
+    
+  db_flag:    
+    image: postgres:16
+    container_name: postgres-flag
+    ports: 
+      - "5433:5432" 
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: flag_db
+    volumes:
+      - ./flag-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d flag_db"]
       interval: 5s
       timeout: 5s
       retries: 5
