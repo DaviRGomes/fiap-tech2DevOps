@@ -70,6 +70,42 @@ services:
     networks:
       - app-network
 
+# Targeting - Service
+
+  targeting_service:
+      build: ./targeting-service
+      container_name: targeting_service
+      ports:
+        - "8003:8003"
+      environment:
+        DATABASE_URL: postgres://postgres:postgres@db_targeting:5432/targeting_db?sslmode=disable
+        PORT: 8003
+        AUTH_SERVICE_URL: "http://localhost:8001"
+      networks:
+        - app-network
+      depends_on:
+        db_targeting:
+            condition: service_healthy
+
+  db_targeting:
+      image: postgres:16
+      container_name: postgres-targeting
+      ports: 
+        - "5434:5432" 
+      environment:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_DB: targeting_db
+      volumes:
+        - ./targeting-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U postgres -d targeting_db"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
+      networks:
+        - app-network
+
 networks:
   app-network:
     driver: bridge
