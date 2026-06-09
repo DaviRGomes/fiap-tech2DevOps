@@ -44,7 +44,7 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:postgres@db_flag:5432/flag_db?sslmode=disable
       PORT: 8002
-      AUTH_SERVICE_URL: "http://localhost:8001"
+      AUTH_SERVICE_URL: "http://auth-service:8001"
     networks:
       - app-network
     depends_on:
@@ -80,7 +80,7 @@ services:
       environment:
         DATABASE_URL: postgres://postgres:postgres@db_targeting:5432/targeting_db?sslmode=disable
         PORT: 8003
-        AUTH_SERVICE_URL: "http://localhost:8001"
+        AUTH_SERVICE_URL: "http://auth-service:8001"
       networks:
         - app-network
       depends_on:
