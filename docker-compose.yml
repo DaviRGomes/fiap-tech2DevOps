@@ -144,6 +144,25 @@ services:
     networks:
       - app-network
 
+  # Analytics - Service
+  analytics_service:
+    build: ./analytics-service
+    container_name: analytics_service
+    ports:
+      - "8005:8005"
+    environment:
+      PORT: 8005
+      AWS_SQS_URL: ${AWS_SQS_URL}
+      AWS_REGION: ${AWS_REGION}
+      AWS_DYNAMODB_TABLE: ${AWS_DYNAMODB_TABLE}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    networks:
+      - app-network
+    depends_on:
+      evaluation_redis:
+        condition: service_healthy
+
 networks:
   app-network:
     driver: bridge
