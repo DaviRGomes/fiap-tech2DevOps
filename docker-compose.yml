@@ -1,6 +1,6 @@
 services:
 
-# Auth - Service
+  # Auth - Service
   auth-service:
     build: ./auth-service
     container_name: auth-service
@@ -9,7 +9,7 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:postgres@db_auth:5432/auth_db?sslmode=disable
       PORT: 8001
-      MASTER_KEY: admin-secreto-123
+      MASTER_KEY: ${MASTER_KEY}
     networks:
       - app-network
     depends_on:
@@ -27,15 +27,16 @@ services:
       POSTGRES_DB: auth_db
     volumes:
       - ./auth-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - auth_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d auth_db"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d auth_db" ]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
       - app-network
 
-# Flag - Service
+  # Flag - Service
   flag_service:
     build: ./flag-service
     container_name: flag_service
@@ -50,62 +51,104 @@ services:
     depends_on:
       db_flag:
         condition: service_healthy
-    
-  db_flag:    
+
+  db_flag:
     image: postgres:16
     container_name: postgres-flag
-    ports: 
-      - "5433:5432" 
+    ports:
+      - "5433:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: flag_db
     volumes:
       - ./flag-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - flag_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d flag_db"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d flag_db" ]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
       - app-network
 
-# Targeting - Service
+  # Targeting - Service
 
   targeting_service:
-      build: ./targeting-service
-      container_name: targeting_service
-      ports:
-        - "8003:8003"
-      environment:
-        DATABASE_URL: postgres://postgres:postgres@db_targeting:5432/targeting_db?sslmode=disable
-        PORT: 8003
-        AUTH_SERVICE_URL: "http://auth-service:8001"
-      networks:
-        - app-network
-      depends_on:
-        db_targeting:
-            condition: service_healthy
+    build: ./targeting-service
+    container_name: targeting_service
+    ports:
+      - "8003:8003"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db_targeting:5432/targeting_db?sslmode=disable
+      PORT: 8003
+      AUTH_SERVICE_URL: "http://auth-service:8001"
+    networks:
+      - app-network
+    depends_on:
+      db_targeting:
+        condition: service_healthy
 
   db_targeting:
-      image: postgres:16
-      container_name: postgres-targeting
-      ports: 
-        - "5434:5432" 
-      environment:
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: postgres
-        POSTGRES_DB: targeting_db
-      volumes:
-        - ./targeting-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql
-      healthcheck:
-        test: ["CMD-SHELL", "pg_isready -U postgres -d targeting_db"]
-        interval: 5s
-        timeout: 5s
-        retries: 5
-      networks:
-        - app-network
+    image: postgres:16
+    container_name: postgres-targeting
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: targeting_db
+    volumes:
+      - ./targeting-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - targeting_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d targeting_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  # Evaluation - Service
+  evaluation_service:
+    build: ./evaluation-service
+    container_name: evaluation_service
+    ports:
+      - "8004:8004"
+    environment:
+      FLAG_SERVICE_URL: "http://flag_service:8002"
+      TARGETING_SERVICE_URL: "http://targeting_service:8003"
+      REDIS_URL: "redis://evaluation_redis:6379"
+      PORT: 8004
+      SERVICE_API_KEY: ${SERVICE_API_KEY}
+      AWS_SQS_URL: ${AWS_SQS_URL}
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    networks:
+      - app-network
+    depends_on:
+      evaluation_redis:
+        condition: service_healthy
+
+  evaluation_redis:
+    image: redis:8.6
+    container_name: evaluation_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
 
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  auth_data:
+  flag_data:
+  targeting_data:
